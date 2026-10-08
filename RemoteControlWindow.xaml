@@ -51,7 +51,7 @@
         <Style x:Key="SectionLbl" TargetType="TextBlock">
             <Setter Property="Foreground" Value="#9DA0A8"/>
             <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Margin" Value="2,8,0,2"/>
+            <Setter Property="Margin" Value="2,6,0,2"/>
         </Style>
 
         <Style x:Key="DarkTextBox" TargetType="TextBox">
@@ -62,6 +62,37 @@
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="4,3"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <!-- 다크 테마 GroupBox: 테두리 윗선을 헤더 라벨이 덮는 방식 -->
+        <Style x:Key="Grp" TargetType="GroupBox">
+            <Setter Property="Margin" Value="0,8,0,0"/>
+            <Setter Property="Padding" Value="4,4,4,4"/>
+            <Setter Property="Foreground" Value="#9DA0A8"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="BorderBrush" Value="#3F3F46"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="GroupBox">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <!-- 본문 영역 테두리: 윗선이 헤더 라벨 뒤로 지나감 -->
+                            <Border Grid.Row="0" Grid.RowSpan="2"
+                                  BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
+                                  CornerRadius="6" Margin="0,7,0,0"/>
+                            <!-- 헤더 라벨: 배경으로 테두리 윗선을 마스킹 -->
+                            <Border Grid.Row="0" Background="#F0252526" HorizontalAlignment="Left"
+                                  Margin="10,0,0,0" Padding="5,0">
+                                <ContentPresenter ContentSource="Header"/>
+                            </Border>
+                            <ContentPresenter Grid.Row="1" Margin="{TemplateBinding Padding}"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </Window.Resources>
 
@@ -75,94 +106,128 @@
                         Click="btnClose_Click" ToolTip="리모컨 닫기"/>
             </Grid>
 
-            <!-- 위치 이동 (간격 버튼 클릭으로 이동 단위 순환) -->
-            <TextBlock Text="위치 이동" Style="{StaticResource SectionLbl}"/>
-            <DockPanel LastChildFill="True">
-                <Button x:Name="btnStep" DockPanel.Dock="Right" Style="{StaticResource MiniBtn}" Width="74"
-                      VerticalAlignment="Stretch" Height="Auto" Click="btnStep_Click"
-                      ToolTip="이동 간격 변경 (클릭할 때마다 10 → 25 → 50 → 100)"/>
-                <UniformGrid Rows="3" Columns="3">
-                    <Border/>
-                    <Button Content="▲" Style="{StaticResource IconBtn}" Click="btnUp_Click" ToolTip="위로"/>
-                    <Border/>
-                    <Button Content="◀" Style="{StaticResource IconBtn}" Click="btnLeft_Click" ToolTip="왼쪽으로"/>
-                    <Button Content="■" Style="{StaticResource IconBtn}" Click="btnCenter_Click" ToolTip="화면 중앙"/>
-                    <Button Content="▶" Style="{StaticResource IconBtn}" Click="btnRight_Click" ToolTip="오른쪽으로"/>
-                    <Border/>
-                    <Button Content="▼" Style="{StaticResource IconBtn}" Click="btnDown_Click" ToolTip="아래로"/>
-                    <Border/>
-                </UniformGrid>
-            </DockPanel>
+            <!-- ① URL 이동 -->
+            <GroupBox Header="URL 이동" Style="{StaticResource Grp}">
+                <DockPanel LastChildFill="True">
+                    <Button x:Name="btnRemoteGo" Content="이동" DockPanel.Dock="Right" Style="{StaticResource IconBtn}"
+                          Width="52" Click="btnRemoteGo_Click" ToolTip="입력한 URL로 이동"/>
+                    <TextBox x:Name="txtRemoteUrl" Style="{StaticResource DarkTextBox}" Margin="2,2,4,2"
+                           KeyDown="txtRemoteUrl_KeyDown" ToolTip="URL 입력 (Enter로 이동)"/>
+                </DockPanel>
+            </GroupBox>
 
-            <!-- 9-グリッド 스냅: 화면 코너/변/중앙으로 즉시 배치 -->
-            <TextBlock Text="9-Grid 스냅 (코너·변·중앙으로 즉시 배치)" Style="{StaticResource SectionLbl}"/>
-            <UniformGrid Rows="3" Columns="3">
-                <Button Content="왼쪽 위" Style="{StaticResource MiniBtn}" Click="Snap_Click" Tag="0,0"/>
-                <Button Content="상단 중앙" Style="{StaticResource MiniBtn}" Click="Snap_Click" Tag="0,1"/>
-                <Button Content="오른쪽 위" Style="{StaticResource MiniBtn}" Click="Snap_Click" Tag="0,2"/>
-                <Button Content="좌측 중앙" Style="{StaticResource MiniBtn}" Click="Snap_Click" Tag="1,0"/>
-                <Button Content="정중앙" Style="{StaticResource MiniBtn}" Click="Snap_Click" Tag="1,1"/>
-                <Button Content="우측 중앙" Style="{StaticResource MiniBtn}" Click="Snap_Click" Tag="1,2"/>
-                <Button Content="왼쪽 아래" Style="{StaticResource MiniBtn}" Click="Snap_Click" Tag="2,0"/>
-                <Button Content="하단 중앙" Style="{StaticResource MiniBtn}" Click="Snap_Click" Tag="2,1"/>
-                <Button Content="오른쪽 아래" Style="{StaticResource MiniBtn}" Click="Snap_Click" Tag="2,2"/>
-            </UniformGrid>
+            <!-- ② 위치 · 크기 조절 -->
+            <GroupBox Header="위치 · 크기 조절" Style="{StaticResource Grp}">
+                <StackPanel>
+                    <!-- 위치 이동 (간격 버튼 클릭으로 이동 단위 순환) -->
+                    <TextBlock Text="위치 이동" Style="{StaticResource SectionLbl}"/>
+                    <DockPanel LastChildFill="True">
+                        <Button x:Name="btnStep" DockPanel.Dock="Right" Style="{StaticResource MiniBtn}" Width="74"
+                              VerticalAlignment="Stretch" Height="Auto" Click="btnStep_Click"
+                              ToolTip="이동 간격 변경 (클릭할 때마다 10 → 25 → 50 → 100)"/>
+                        <UniformGrid Rows="3" Columns="3">
+                            <Border/>
+                            <Button Content="▲" Style="{StaticResource IconBtn}" Click="btnUp_Click" ToolTip="위로"/>
+                            <Border/>
+                            <Button Content="◀" Style="{StaticResource IconBtn}" Click="btnLeft_Click" ToolTip="왼쪽으로"/>
+                            <Button Content="■" Style="{StaticResource IconBtn}" Click="btnCenter_Click" ToolTip="화면 중앙"/>
+                            <Button Content="▶" Style="{StaticResource IconBtn}" Click="btnRight_Click" ToolTip="오른쪽으로"/>
+                            <Border/>
+                            <Button Content="▼" Style="{StaticResource IconBtn}" Click="btnDown_Click" ToolTip="아래로"/>
+                            <Border/>
+                        </UniformGrid>
+                    </DockPanel>
 
-            <!-- 크기 조절 -->
-            <TextBlock Text="크기 조절" Style="{StaticResource SectionLbl}"/>
-            <UniformGrid Columns="4">
-                <Button Content="W −" Style="{StaticResource MiniBtn}" Click="btnWMinus_Click" ToolTip="너비 축소"/>
-                <Button Content="W +" Style="{StaticResource MiniBtn}" Click="btnWPlus_Click" ToolTip="너비 확대"/>
-                <Button Content="H −" Style="{StaticResource MiniBtn}" Click="btnHMinus_Click" ToolTip="높이 축소"/>
-                <Button Content="H +" Style="{StaticResource MiniBtn}" Click="btnHPlus_Click" ToolTip="높이 확대"/>
-            </UniformGrid>
-            <UniformGrid Columns="4">
-                <Button Content="25%" Style="{StaticResource MiniBtn}" Click="btnP25_Click" ToolTip="작게 (작업 공간 25%)"/>
-                <Button Content="50%" Style="{StaticResource MiniBtn}" Click="btnP50_Click" ToolTip="보통 (작업 공간 50%)"/>
-                <Button Content="75%" Style="{StaticResource MiniBtn}" Click="btnP75_Click" ToolTip="크게 (작업 공간 75%)"/>
-                <Button Content="MAX" Style="{StaticResource MiniBtn}" Click="btnPMax_Click" ToolTip="거의 전체 화면"/>
-            </UniformGrid>
+                    <!-- 9-Grid 스냅: 화면 코너/변/중앙으로 즉시 배치 -->
+                    <TextBlock Text="9-Grid 스냅 (코너·변·중앙으로 즉시 배치)" Style="{StaticResource SectionLbl}"/>
+                    <UniformGrid Rows="3" Columns="3">
+                        <Button Content="왼쪽 위" Style="{StaticResource MiniBtn}" Click="Snap_Click" Tag="0,0"/>
+                        <Button Content="상단 중앙" Style="{StaticResource MiniBtn}" Click="Snap_Click" Tag="0,1"/>
+                        <Button Content="오른쪽 위" Style="{StaticResource MiniBtn}" Click="Snap_Click" Tag="0,2"/>
+                        <Button Content="좌측 중앙" Style="{StaticResource MiniBtn}" Click="Snap_Click" Tag="1,0"/>
+                        <Button Content="정중앙" Style="{StaticResource MiniBtn}" Click="Snap_Click" Tag="1,1"/>
+                        <Button Content="우측 중앙" Style="{StaticResource MiniBtn}" Click="Snap_Click" Tag="1,2"/>
+                        <Button Content="왼쪽 아래" Style="{StaticResource MiniBtn}" Click="Snap_Click" Tag="2,0"/>
+                        <Button Content="하단 중앙" Style="{StaticResource MiniBtn}" Click="Snap_Click" Tag="2,1"/>
+                        <Button Content="오른쪽 아래" Style="{StaticResource MiniBtn}" Click="Snap_Click" Tag="2,2"/>
+                    </UniformGrid>
 
-            <!-- URL 이동 -->
-            <TextBlock Text="URL 이동" Style="{StaticResource SectionLbl}"/>
-            <DockPanel LastChildFill="True">
-                <Button x:Name="btnRemoteGo" Content="이동" DockPanel.Dock="Right" Style="{StaticResource IconBtn}"
-                      Width="52" Click="btnRemoteGo_Click" ToolTip="입력한 URL로 이동"/>
-                <TextBox x:Name="txtRemoteUrl" Style="{StaticResource DarkTextBox}" Margin="2,2,4,2"
-                       KeyDown="txtRemoteUrl_KeyDown" ToolTip="URL 입력 (Enter로 이동)"/>
-            </DockPanel>
+                    <!-- 크기 조절 -->
+                    <TextBlock Text="크기 조절" Style="{StaticResource SectionLbl}"/>
+                    <UniformGrid Columns="4">
+                        <Button Content="W −" Style="{StaticResource MiniBtn}" Click="btnWMinus_Click" ToolTip="너비 축소"/>
+                        <Button Content="W +" Style="{StaticResource MiniBtn}" Click="btnWPlus_Click" ToolTip="너비 확대"/>
+                        <Button Content="H −" Style="{StaticResource MiniBtn}" Click="btnHMinus_Click" ToolTip="높이 축소"/>
+                        <Button Content="H +" Style="{StaticResource MiniBtn}" Click="btnHPlus_Click" ToolTip="높이 확대"/>
+                    </UniformGrid>
+                    <UniformGrid Columns="4">
+                        <Button Content="25%" Style="{StaticResource MiniBtn}" Click="btnP25_Click" ToolTip="작게 (작업 공간 25%)"/>
+                        <Button Content="50%" Style="{StaticResource MiniBtn}" Click="btnP50_Click" ToolTip="보통 (작업 공간 50%)"/>
+                        <Button Content="75%" Style="{StaticResource MiniBtn}" Click="btnP75_Click" ToolTip="크게 (작업 공간 75%)"/>
+                        <Button Content="MAX" Style="{StaticResource MiniBtn}" Click="btnPMax_Click" ToolTip="거의 전체 화면"/>
+                    </UniformGrid>
+                </StackPanel>
+            </GroupBox>
 
-            <!-- PIN: 현재 위치+크기를 슬롯에 저장해뒀다가 클릭 한 번으로 복귀 -->
-            <TextBlock Text="PIN — 위치+크기 저장 / 클릭으로 즉시 이동" Style="{StaticResource SectionLbl}"/>
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
+            <!-- ③ PIN: 현재 위치+크기를 슬롯에 저장해뒀다가 클릭 한 번으로 복귀 -->
+            <GroupBox Header="PIN — 위치+크기 저장 / 복귀" Style="{StaticResource Grp}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
 
-                <Button x:Name="pinGo0" Grid.Row="0" Grid.Column="0" Content="📌 PIN 1" Style="{StaticResource IconBtn}" Click="PinGo_Click"/>
-                <Button x:Name="pinSave0" Grid.Row="0" Grid.Column="1" Content="💾" Style="{StaticResource MiniBtn}" Click="PinSave_Click" ToolTip="현재 위치+크기를 저장"/>
-                <Button x:Name="pinClear0" Grid.Row="0" Grid.Column="2" Content="🗑" Style="{StaticResource MiniBtn}" Click="PinClear_Click" ToolTip="저장 삭제"/>
+                    <Button x:Name="pinGo0" Grid.Row="0" Grid.Column="0" Content="📌 PIN 1" Style="{StaticResource IconBtn}" Click="PinGo_Click"/>
+                    <Button x:Name="pinSave0" Grid.Row="0" Grid.Column="1" Content="💾" Style="{StaticResource MiniBtn}" Click="PinSave_Click" ToolTip="현재 위치+크기를 저장"/>
+                    <Button x:Name="pinClear0" Grid.Row="0" Grid.Column="2" Content="🗑" Style="{StaticResource MiniBtn}" Click="PinClear_Click" ToolTip="저장 삭제"/>
 
-                <Button x:Name="pinGo1" Grid.Row="1" Grid.Column="0" Content="📌 PIN 2" Style="{StaticResource IconBtn}" Click="PinGo_Click"/>
-                <Button x:Name="pinSave1" Grid.Row="1" Grid.Column="1" Content="💾" Style="{StaticResource MiniBtn}" Click="PinSave_Click" ToolTip="현재 위치+크기를 저장"/>
-                <Button x:Name="pinClear1" Grid.Row="1" Grid.Column="2" Content="🗑" Style="{StaticResource MiniBtn}" Click="PinClear_Click" ToolTip="저장 삭제"/>
+                    <Button x:Name="pinGo1" Grid.Row="1" Grid.Column="0" Content="📌 PIN 2" Style="{StaticResource IconBtn}" Click="PinGo_Click"/>
+                    <Button x:Name="pinSave1" Grid.Row="1" Grid.Column="1" Content="💾" Style="{StaticResource MiniBtn}" Click="PinSave_Click" ToolTip="현재 위치+크기를 저장"/>
+                    <Button x:Name="pinClear1" Grid.Row="1" Grid.Column="2" Content="🗑" Style="{StaticResource MiniBtn}" Click="PinClear_Click" ToolTip="저장 삭제"/>
 
-                <Button x:Name="pinGo2" Grid.Row="2" Grid.Column="0" Content="📌 PIN 3" Style="{StaticResource IconBtn}" Click="PinGo_Click"/>
-                <Button x:Name="pinSave2" Grid.Row="2" Grid.Column="1" Content="💾" Style="{StaticResource MiniBtn}" Click="PinSave_Click" ToolTip="현재 위치+크기를 저장"/>
-                <Button x:Name="pinClear2" Grid.Row="2" Grid.Column="2" Content="🗑" Style="{StaticResource MiniBtn}" Click="PinClear_Click" ToolTip="저장 삭제"/>
+                    <Button x:Name="pinGo2" Grid.Row="2" Grid.Column="0" Content="📌 PIN 3" Style="{StaticResource IconBtn}" Click="PinGo_Click"/>
+                    <Button x:Name="pinSave2" Grid.Row="2" Grid.Column="1" Content="💾" Style="{StaticResource MiniBtn}" Click="PinSave_Click" ToolTip="현재 위치+크기를 저장"/>
+                    <Button x:Name="pinClear2" Grid.Row="2" Grid.Column="2" Content="🗑" Style="{StaticResource MiniBtn}" Click="PinClear_Click" ToolTip="저장 삭제"/>
 
-                <Button x:Name="pinGo3" Grid.Row="3" Grid.Column="0" Content="📌 PIN 4" Style="{StaticResource IconBtn}" Click="PinGo_Click"/>
-                <Button x:Name="pinSave3" Grid.Row="3" Grid.Column="1" Content="💾" Style="{StaticResource MiniBtn}" Click="PinSave_Click" ToolTip="현재 위치+크기를 저장"/>
-                <Button x:Name="pinClear3" Grid.Row="3" Grid.Column="2" Content="🗑" Style="{StaticResource MiniBtn}" Click="PinClear_Click" ToolTip="저장 삭제"/>
-            </Grid>
+                    <Button x:Name="pinGo3" Grid.Row="3" Grid.Column="0" Content="📌 PIN 4" Style="{StaticResource IconBtn}" Click="PinGo_Click"/>
+                    <Button x:Name="pinSave3" Grid.Row="3" Grid.Column="1" Content="💾" Style="{StaticResource MiniBtn}" Click="PinSave_Click" ToolTip="현재 위치+크기를 저장"/>
+                    <Button x:Name="pinClear3" Grid.Row="3" Grid.Column="2" Content="🗑" Style="{StaticResource MiniBtn}" Click="PinClear_Click" ToolTip="저장 삭제"/>
+                </Grid>
+            </GroupBox>
+
+            <!-- ④ OBS 하트비트: 다른 PC들의 OBS Studio(WebSocket 4455)가 살아있는지 주기 확인 -->
+            <GroupBox Header="OBS 하트비트 — 원격 OBS 생존 감시" Style="{StaticResource Grp}">
+                <StackPanel>
+                    <DockPanel LastChildFill="True">
+                        <Button x:Name="btnHbPulse" Content="⚡ 지금" DockPanel.Dock="Right" Style="{StaticResource MiniBtn}" Width="58"
+                              Click="btnHbPulse_Click" ToolTip="입력값을 다시 적용하고 즉시 재확인"/>
+                        <CheckBox x:Name="chkHeartbeat" Content="감시" DockPanel.Dock="Right" Foreground="#EDEDED" FontSize="12"
+                                VerticalAlignment="Center" Margin="2,2,8,2"
+                                Checked="chkHeartbeat_Changed" Unchecked="chkHeartbeat_Changed"
+                                ToolTip="체크하면 입력된 IP들의 OBS를 주기적으로 확인 — 죽으면 채팅창 하단에 빨간 경고"/>
+                        <TextBox x:Name="txtHeartbeatHosts" Style="{StaticResource DarkTextBox}" Margin="2"
+                               KeyDown="txtHeartbeatHosts_KeyDown" FontSize="12"
+                               ToolTip="IP를 쉼표로 구분해 입력 — 포트 생략 시 4455, Enter로 적용&#10;IP별 비밀번호: 192.168.0.11=pw1, 192.168.0.12:4455=pw2&#10;(비밀번호 없는 항목은 아래 기본 PW 사용)"/>
+                    </DockPanel>
+                    <DockPanel LastChildFill="True" Margin="0,2,0,0">
+                        <TextBlock Text="PW" Foreground="#9DA0A8" FontSize="11" VerticalAlignment="Center"
+                                 DockPanel.Dock="Left" Margin="2,0,6,0"/>
+                        <PasswordBox x:Name="txtHeartbeatPassword" Background="#2D2D30" Foreground="#EDEDED" CaretBrush="#EDEDED"
+                                   BorderBrush="#3F3F46" BorderThickness="1" Padding="4,3" Margin="2,0"
+                                   VerticalContentAlignment="Center" FontSize="12"
+                                   KeyDown="txtHeartbeatPassword_KeyDown"
+                                   ToolTip="기본 비밀번호 — IP 입력에서 '=비밀번호'로 지정하지 않은 대상에 적용&#10;OBS 서버 설정 → WebSocket 인증이 켜져 있으면 입력 후 Enter"/>
+                    </DockPanel>
+                    <StackPanel x:Name="pnlHeartbeatStatus" Margin="2,4,0,0"/>
+                </StackPanel>
+            </GroupBox>
 
             <!-- 상태 표시 -->
             <TextBlock x:Name="txtStatus" Text="대기" Foreground="#7D7D85" FontSize="10" Margin="2,8,0,0"/>

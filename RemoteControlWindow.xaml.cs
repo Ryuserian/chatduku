@@ -1,6 +1,8 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Shapes;
 using ChatDuku.Browser;
 using ChatDuku.Configuration;
 using ChatDuku.Remote;
@@ -23,6 +25,9 @@ namespace ChatDuku
         private Button[] _pinSave = null!;
         private Button[] _pinClear = null!;
 
+        // 하트비트 상태 행 캐시: "IP:포트" → (아이콘, 라벨, 모서리 볼더러)
+        private readonly Dictionary<string, (Ellipse Dot, TextBlock Label, Border Border)> _hbRows = new();
+
         public RemoteControlWindow(MainWindow target)
         {
             InitializeComponent();
@@ -38,6 +43,8 @@ namespace ChatDuku
             RefreshPinUi();
             btnStep.Content = $"간격 {(int)_controller.Step}px";
             UpdateStatus();
+
+            InitHeartbeatUi();
         }
 
         // ===== 위치 이동 =====
@@ -174,6 +181,157 @@ namespace ChatDuku
         }
 
         private static int IndexOf(Button[] arr, object sender) => Array.IndexOf(arr, sender);
+
+        // ===== OBS 하트비트 =====
+
+        // 상태별 (도트 색, 텍스트 색) 팔레트
+        private static readonly SolidColorBrush BrushAliveDot = Freeze(Color.FromRgb(0x4C, 0xAF, 0x50));
+        private static readonly SolidColorBrush BrushDeadDot = Freeze(Color.FromRgb(0xFF, 0x52, 0x52));
+        private static readonly SolidColorBrush BrushPendingDot = Freeze(Color.FromRgb(0x9E, 0x9E, 0x9E));
+        private static readonly SolidColorBrush BrushAliveText = Freeze(Color.FromRgb(0xA5, 0xD6, 0xA7));
+        private static readonly SolidColorBrush BrushDeadText = Freeze(Color.FromRgb(0xFF, 0x8A, 0x80));
+        private static readonly SolidColorBrush BrushDeadBorder = Freeze(Color.FromRgb(0xB7, 0x1C, 0x1C));
+
+        private static SolidColorBrush Freeze(Color c)
+        {
+            var b = new SolidColorBrush(c);
+            b.Freeze();
+            return b;
+        }
+
+        /// <summary>이전 세션 설정을 복원하고 하트비트 상태 이벤트를 구독한다.</summary>
+        private void InitHeartbeatUi()
+        {
+            txtHeartbeatHosts.Text = AppSettings.HeartbeatHosts;
+            if (!string.IsNullOrEmpty(AppSettings.HeartbeatPassword))
+                txtHeartbeatPassword.Password = AppSettings.HeartbeatPassword;
+
+            chkHeartbeat.IsChecked = AppSettings.HeartbeatEnabled &&
+                                     MainWindow.ParseHeartbeatHosts(AppSettings.HeartbeatHosts).Count > 0;
+
+            _target.HeartbeatStatusChanged += RefreshHeartbeatUi;
+            Closed += (_, _) => _target.HeartbeatStatusChanged -= RefreshHeartbeatUi;
+
+            // 리모컨이 열리자마자 이미 진행 중인 감시 상태를 그린다
+            RefreshHeartbeatUi();
+        }
+
+        private void chkHeartbeat_Changed(object sender, RoutedEventArgs e)
+        {
+            if (chkHeartbeat.IsChecked == true)
+                ApplyHeartbeat();
+            else
+                _target.StopHeartbeat();
+
+            txtStatus.Text = chkHeartbeat.IsChecked == true
+                ? $"하트비트 감시 시작 ({AppSettings.ObsHeartbeatIntervalMs / 1000}초 주기)"
+                : "하트비트 감시 해제";
+            RefreshHeartbeatUi();
+        }
+
+        private void ApplyHeartbeat()
+        {
+            _target.StartHeartbeat(txtHeartbeatHosts.Text, txtHeartbeatPassword.Password);
+        }
+
+        private void btnHbPulse_Click(object sender, RoutedEventArgs e)
+        {
+            if (chkHeartbeat.IsChecked == true)
+                ApplyHeartbeat();
+            txtStatus.Text = "하트비트 즉시 재확인";
+        }
+
+        private void txtHeartbeatHosts_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key != Key.Enter)
+                return;
+
+            if (chkHeartbeat.IsChecked == true)
+            {
+                ApplyHeartbeat();
+                txtStatus.Text = "하트비트 대상 갱신 — 즉시 재확인 중";
+            }
+            else
+            {
+                // "=비밀번호" 인라인 문법을 보존해 원문 그대로 저장
+                AppSettings.SaveHeartbeat(true, txtHeartbeatHosts.Text.Trim(), txtHeartbeatPassword.Password);
+                txtStatus.Text = "IP 저장됨 — 감시 체크박스를 켜세요";
+            }
+            e.Handled = true;
+        }
+
+        private void txtHeartbeatPassword_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key != Key.Enter)
+                return;
+
+            if (chkHeartbeat.IsChecked == true)
+            {
+                ApplyHeartbeat();
+                txtStatus.Text = "비밀번호 반영 — 재인증 시도 중";
+            }
+            else
+            {
+                AppSettings.SaveHeartbeat(false, txtHeartbeatHosts.Text, txtHeartbeatPassword.Password);
+                txtStatus.Text = "비밀번호 저장됨";
+            }
+            e.Handled = true;
+        }
+
+        /// <summary>모니터 상태를 다시 그린다. 대상 추가/삭제 시 행을 동기화한다.</summary>
+        private void RefreshHeartbeatUi()
+        {
+            var targets = _target.HeartbeatTargets;
+            var keys = targets.Select(t => $"{t.Host}:{t.Port}").ToHashSet();
+
+            // 감시에서 빠진 행 정리
+            foreach (var key in _hbRows.Keys.Where(k => !keys.Contains(k)).ToArray())
+            {
+                var row = _hbRows[key];
+                pnlHeartbeatStatus.Children.Remove(row.Border);
+                _hbRows.Remove(key);
+            }
+
+            foreach (var t in targets)
+            {
+                string key = $"{t.Host}:{t.Port}";
+                if (!_hbRows.TryGetValue(key, out var row))
+                {
+                    var dot = new Ellipse { Width = 9, Height = 9, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
+                    var label = new TextBlock { FontSize = 11, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
+                    var dp = new DockPanel { LastChildFill = true };
+                    DockPanel.SetDock(dot, Dock.Left);
+                    dp.Children.Add(dot);
+                    dp.Children.Add(label);
+
+                    var border = new Border
+                    {
+                        Background = Freeze(Color.FromArgb(0x33, 0x00, 0x00, 0x00)),
+                        CornerRadius = new CornerRadius(4),
+                        Padding = new Thickness(6, 3, 6, 3),
+                        Margin = new Thickness(0, 1, 0, 1),
+                        BorderThickness = new Thickness(0),
+                        Child = dp,
+                    };
+
+                    row = (dot, label, border);
+                    _hbRows[key] = row;
+                    pnlHeartbeatStatus.Children.Add(border);
+                }
+
+                row.Dot.Fill = t.State switch
+                {
+                    HeartbeatState.Alive => BrushAliveDot,
+                    HeartbeatState.Dead => BrushDeadDot,
+                    _ => BrushPendingDot,
+                };
+                row.Label.Foreground = t.State == HeartbeatState.Dead ? BrushDeadText : BrushAliveText;
+                row.Label.Text = t.Describe();
+                row.Label.ToolTip = t.Detail;
+                row.Border.BorderBrush = t.State == HeartbeatState.Dead ? BrushDeadBorder : Brushes.Transparent;
+                row.Border.BorderThickness = t.State == HeartbeatState.Dead ? new Thickness(1) : new Thickness(0);
+            }
+        }
 
         private void RefreshPinUi()
         {

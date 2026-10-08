@@ -23,6 +23,9 @@ namespace ChatDuku
         private readonly AutoHideToolbar _autoHide;
         private readonly WindowResizeHelper _resizeHelper;
 
+        // OBS 하트비트 감시 (리모컨의 체크박스로 켜고 끄며, 죽은 대상은 하단 빨간 배너로 표시)
+        private readonly ObsHeartbeatMonitor _heartbeat = new();
+
         // 리모컨 창 (열림/닫힘 토글)
         private RemoteControlWindow? _remoteWin;
 
@@ -48,6 +51,13 @@ namespace ChatDuku
             _screenshotMode = Environment.GetEnvironmentVariable("CHATDUKU_SHOT") == "1";
 
             ApplyFrameStyle();
+
+            // 하트비트 상태 변경 → 죽은 대상이 있으면 하단 빨간 배너 표시 + 리모컨 행 갱신 (UI 스레드로 마샬링)
+            _heartbeat.StatusChanged += () => Dispatcher.BeginInvoke(() =>
+            {
+                UpdateHeartbeatBanner();
+                HeartbeatStatusChanged?.Invoke();
+            });
 
             _session.NavigationStateUpdated += (canBack, canForward) =>
             {
@@ -97,6 +107,89 @@ namespace ChatDuku
         private async Task InitializeAsync()
         {
             await _session.InitializeAsync();
+
+            // 이전 세션에서 하트비트를 켜둔 상태였으면 자동 복원
+            if (AppSettings.HeartbeatEnabled && ParseHeartbeatHosts(AppSettings.HeartbeatHosts).Count > 0)
+                _heartbeat.Start(ParseHeartbeatHosts(AppSettings.HeartbeatHosts), AppSettings.HeartbeatPassword);
+        }
+
+        // ===== OBS 하트비트 감시 =====
+
+        /// <summary>하트비트 대상 상태가 바뀔 때마다 발생(UI 스레드에서 호출됨). 리모컨이 구독해 행 상태를 갱신한다.</summary>
+        public event Action? HeartbeatStatusChanged;
+
+        /// <summary>현재 감시 중인 OBS 대상 목록.</summary>
+        public IReadOnlyList<ObsTarget> HeartbeatTargets => _heartbeat.Targets;
+
+        /// <summary>
+        /// "192.168.0.11, 192.168.0.12:4455=pw2, 192.168.0.13=pw3" 형태의 목록을 파싱한다.
+        /// - 포트 생략 시 AppSettings.ObsWebSocketPort(기본 4455)
+        /// - "=비밀번호" 접미사로 그 대상에만 적용되는 비밀번호 지정 (없으면 리모컨의 기본 PW 사용)
+        /// </summary>
+        public static List<(string Host, int Port, string? Password)> ParseHeartbeatHosts(string raw)
+        {
+            var list = new List<(string, int, string?)>();
+            foreach (var token in raw.Split(new[] { ',', ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string s = token.Trim();
+                if (s.Length == 0) continue;
+
+                string? password = null;
+                int eq = s.LastIndexOf('=');
+                if (eq >= 0)
+                {
+                    password = s[(eq + 1)..].Trim();
+                    if (password.Length == 0) password = null;
+                    s = s[..eq].Trim();
+                    if (s.Length == 0) continue;
+                }
+
+                int colon = s.LastIndexOf(':');
+                if (colon > 0 && int.TryParse(s[(colon + 1)..], out int port) && port is > 0 and < 65536)
+                    list.Add((s[..colon].Trim(), port, password));
+                else
+                    list.Add((s, AppSettings.ObsWebSocketPort, password));
+            }
+            return list;
+        }
+
+        /// <summary>리모컨에서 감시 시작/재시작을 요청했을 때의 진입점. hostsCsv에는 "IP:포트=비밀번호" 문법이 허용된다.</summary>
+        public void StartHeartbeat(string hostsCsv, string? defaultPassword)
+        {
+            var hosts = ParseHeartbeatHosts(hostsCsv);
+            if (hosts.Count == 0)
+                return;
+
+            // 사용자가 입력한 원문(인라인 비밀번호 포함)을 그대로 저장 — 재시작 시 복원
+            AppSettings.SaveHeartbeat(true, hostsCsv.Trim(), defaultPassword);
+
+            _heartbeat.Start(hosts, defaultPassword);
+            UpdateHeartbeatBanner();
+        }
+
+        /// <summary>리모컨에서 감시를 해제했을 때의 진입점.</summary>
+        public void StopHeartbeat()
+        {
+            AppSettings.SaveHeartbeatDisabled();
+            _heartbeat.Stop();
+            UpdateHeartbeatBanner();
+        }
+
+        /// <summary>리모컨 손없이도 배너 갱신 (생존 복귀 시 숨김).</summary>
+        public void RefreshHeartbeatNow() => _heartbeat.Poke();
+
+        /// <summary>죽은 OBS가 있을 때만 채팅창 하단에 빨간 상태 배너를 표시한다.</summary>
+        private void UpdateHeartbeatBanner()
+        {
+            if (_heartbeat.AnyDead)
+            {
+                txtHbDead.Text = $"⚠ OBS 연결 끊김 — {_heartbeat.DeadHosts()}";
+                hbDeadBar.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                hbDeadBar.Visibility = Visibility.Collapsed;
+            }
         }
 
         /// <summary>

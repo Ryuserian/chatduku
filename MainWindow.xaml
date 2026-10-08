@@ -15,6 +15,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!-- 상단 컨테이너: 알파 1 배경으로 이벤트 놓침 방지 -->
@@ -80,5 +81,13 @@
         <Border x:Name="frame" Grid.Row="1" Margin="4"
                 BorderBrush="#88FFFFFF" BorderThickness="2"
                 Background="Transparent" IsHitTestVisible="False" />
+
+        <!-- OBS 하트비트 사망 경고 바: 리모컨에서 감시를 켰고 죽은 대상이 있을 때만 보인다.
+             반투명 검정 배경 + 빨간 글자 — 어떤 페이지 위에서도 읽히도록. -->
+        <Border x:Name="hbDeadBar" Grid.Row="2" Visibility="Collapsed"
+                Background="#CC1A0000" Padding="10,5" IsHitTestVisible="False">
+            <TextBlock x:Name="txtHbDead" Foreground="#FF5252" FontSize="13" FontWeight="Bold"
+                     TextWrapping="Wrap" Text="OBS 연결 끊김"/>
+        </Border>
     </Grid>
 </Window>

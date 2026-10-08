@@ -46,6 +46,18 @@ namespace ChatDuku.Configuration
         public static int PinSlotCount { get; private set; } = 4;
         public static string PinFileName { get; private set; } = "pins.json";
 
+        // ===== OBS 하트비트 (다른 PC의 OBS Studio 생존 감시) =====
+        public static bool HeartbeatEnabled { get; private set; } = false;
+        public static string HeartbeatHosts { get; private set; } = "";
+        public static string? HeartbeatPassword { get; private set; }
+        public static int ObsWebSocketPort { get; private set; } = 4455;
+        public static int ObsHeartbeatIntervalMs { get; private set; } = 5000;
+        public static int ObsConnectTimeoutMs { get; private set; } = 3000;
+        public static int ObsResponseTimeoutMs { get; private set; } = 5000;
+        public static int ObsHelloProbeMs { get; private set; } = 1200;
+        public static int ObsReconnectDelayMs { get; private set; } = 5000;
+        public static int ObsDeadThreshold { get; private set; } = 3;
+
         // ===== 이동 간격 / 크기 프리셋 =====
         public static int[] MoveStepCycle { get; private set; } = [10, 25, 50, 100];
         public static int DefaultStepIndex { get; private set; } = 1;
@@ -89,12 +101,83 @@ namespace ChatDuku.Configuration
                 MoveStepCycle = Get(root, nameof(MoveStepCycle), MoveStepCycle);
                 DefaultStepIndex = Get(root, nameof(DefaultStepIndex), DefaultStepIndex);
                 SizeFractions = Get(root, nameof(SizeFractions), SizeFractions);
+                HeartbeatEnabled = Get(root, nameof(HeartbeatEnabled), HeartbeatEnabled);
+                HeartbeatHosts = Get(root, nameof(HeartbeatHosts), HeartbeatHosts);
+                HeartbeatPassword = Get(root, nameof(HeartbeatPassword), HeartbeatPassword ?? "");
+                ObsWebSocketPort = Get(root, nameof(ObsWebSocketPort), ObsWebSocketPort);
+                ObsHeartbeatIntervalMs = Math.Max(1000, Get(root, nameof(ObsHeartbeatIntervalMs), ObsHeartbeatIntervalMs));
+                ObsConnectTimeoutMs = Get(root, nameof(ObsConnectTimeoutMs), ObsConnectTimeoutMs);
+                ObsResponseTimeoutMs = Get(root, nameof(ObsResponseTimeoutMs), ObsResponseTimeoutMs);
+                ObsHelloProbeMs = Get(root, nameof(ObsHelloProbeMs), ObsHelloProbeMs);
+                ObsReconnectDelayMs = Get(root, nameof(ObsReconnectDelayMs), ObsReconnectDelayMs);
+                ObsDeadThreshold = Math.Max(1, Get(root, nameof(ObsDeadThreshold), ObsDeadThreshold));
             }
             catch
             {
                 // 손상된 설정은 무시하고 기본값으로 동작
             }
         }
+
+        /// <summary>
+        /// 리모컨에서 하트비트 감시를 켤 때 호출: 메모리 값 갱신 후 appsettings.json에 영속화한다.
+        /// 쓰기 실패는 조용히 무시한다(이번 세션에서는 정상 동작).
+        /// </summary>
+        public static void SaveHeartbeat(bool enabled, string hosts, string? password)
+        {
+            HeartbeatEnabled = enabled;
+            HeartbeatHosts = hosts;
+            HeartbeatPassword = string.IsNullOrWhiteSpace(password) ? null : password;
+            Persist();
+        }
+
+        /// <summary>하트비트 감시 해제 상태를 appsettings.json에 반영한다.</summary>
+        public static void SaveHeartbeatDisabled()
+        {
+            HeartbeatEnabled = false;
+            Persist();
+        }
+
+        /// <summary>
+        /// 기존 appsettings.json의 키를 보존하면서 하트비트 관련 키만 갱신해 다시 쓴다.
+        /// </summary>
+        private static void Persist()
+        {
+            try
+            {
+                string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ConfigFileName);
+
+                var dict = new Dictionary<string, object?>();
+                if (File.Exists(path))
+                {
+                    using var doc = JsonDocument.Parse(File.ReadAllText(path));
+                    foreach (var p in doc.RootElement.EnumerateObject())
+                        dict[p.Name] = Clone(p.Value);
+                }
+
+                dict[nameof(HeartbeatEnabled)] = HeartbeatEnabled;
+                dict[nameof(HeartbeatHosts)] = HeartbeatHosts;
+                dict[nameof(HeartbeatPassword)] = HeartbeatPassword;
+
+                File.WriteAllText(path,
+                    JsonSerializer.Serialize(dict, new JsonSerializerOptions { WriteIndented = true }));
+            }
+            catch
+            {
+                // 쓰기 실패는 조용히 무시
+            }
+        }
+
+        private static object? Clone(JsonElement v) => v.ValueKind switch
+        {
+            JsonValueKind.String => v.GetString(),
+            JsonValueKind.Number => v.TryGetInt64(out var l) ? l : v.GetDouble(),
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Null => null,
+            JsonValueKind.Array => v.EnumerateArray().Select(Clone).ToList(),
+            JsonValueKind.Object => v.EnumerateObject().ToDictionary(p => p.Name, p => Clone(p.Value)),
+            _ => null,
+        };
 
         private static string Get(JsonElement root, string name, string fallback) =>
             root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String
@@ -103,6 +186,14 @@ namespace ChatDuku.Configuration
 
         private static int Get(JsonElement root, string name, int fallback) =>
             root.TryGetProperty(name, out var v) && v.TryGetInt32(out var i) ? i : fallback;
+
+        private static bool Get(JsonElement root, string name, bool fallback) =>
+            root.TryGetProperty(name, out var v) && v.ValueKind switch
+            {
+                JsonValueKind.True => true,
+                JsonValueKind.False => false,
+                _ => fallback,
+            };
 
         private static double Get(JsonElement root, string name, double fallback) =>
             root.TryGetProperty(name, out var v) && v.TryGetDouble(out var d) ? d : fallback;
