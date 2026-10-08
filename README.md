@@ -12,9 +12,9 @@
 > [!IMPORTANT]
 > ## 💜 이 프로젝트는 **홍덕쿠** 님의 아이디어로 시작되었습니다!
 >
-> **[🔴 https://chzzk.naver.com/c1a2b336568bf8e8b9d1e0fab3f8b8b2](https://chzzk.naver.com/c1a2b336568bf8e8b9d1e0fab3f8b8b2)**
+> **[🟢 치지직 채널: https://chzzk.naver.com/c1a2b336568bf8e8b9d1e0fab3f8b8b2](https://chzzk.naver.com/c1a2b336568bf8e8b9d1e0fab3f8b8b2)**
 >
-> **아프리카TV(CHZZK) 스트리머 홍덕쿠 님의 의견(아이디어)에서 영감을 받아 만든 프로젝트입니다.**
+> **치지직(CHZZK, 네이버 라이브 스트리밍 플랫폼) 스트리머 홍덕쿠 님의 의견(아이디어)에서 영감을 받아 만든 프로젝트입니다.**
 > **시간 되실 때 방송 한번 찾아가서 인사 남겨주세요!! 🙏🙇**
 
 ---
