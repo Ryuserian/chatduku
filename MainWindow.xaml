@@ -1,0 +1,84 @@
+﻿<Window x:Class="ChatDuku.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        xmlns:local="clr-namespace:ChatDuku"
+        mc:Ignorable="d"
+        Title="ChatDuku"
+        AllowsTransparency="True"
+        WindowStyle="None"
+        Background="Transparent">
+    <!-- 알파 1 도드라기 픽셀이라야 레이어드 창에서 마우스 이벤트를 잡는다 -->
+    <Grid Background="#01000000">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- 상단 컨테이너: 알파 1 배경으로 이벤트 놓침 방지 -->
+        <StackPanel Grid.Row="0" Background="#01000000">
+            <!-- 히트존: 여기에 마우스를 올리면 툴바가 나타남
+                 알파 1 이상이어야 레이어드 창에서 마우스를 잡으면서肉眼에 안 보임 -->
+            <Border x:Name="hotZone" Height="14" Background="#01FFFFFF"
+                  MouseEnter="HotZone_MouseEnter"
+                  MouseLeftButtonDown="HotZone_MouseLeftButtonDown"
+                  ToolTip="올리면 툴바 표시, 드래그로 창 이동"/>
+
+            <!-- URL 입력 툴바 (빈 곳 드래그로 창 이동, 평소엔 숨김) -->
+            <DockPanel x:Name="toolbar" Margin="0,4" Background="#CC1E1E1E"
+                   Visibility="Collapsed" Opacity="0"
+                   MouseEnter="Toolbar_MouseEnter" MouseLeave="Toolbar_MouseLeave"
+                   MouseLeftButtonDown="Toolbar_MouseLeftButtonDown">
+                <Button x:Name="btnBack" Content="◀" Width="32" DockPanel.Dock="Left" Margin="2,0"
+                      IsEnabled="False" Click="btnBack_Click" ToolTip="뒤로"/>
+                <Button x:Name="btnForward" Content="▶" Width="32" DockPanel.Dock="Left" Margin="2,0"
+                      IsEnabled="False" Click="btnForward_Click" ToolTip="앞으로"/>
+                <Button x:Name="btnRefresh" Content="⟳" Width="32" DockPanel.Dock="Left" Margin="2,0"
+                      Click="btnRefresh_Click" ToolTip="새로고침"/>
+                <Button x:Name="btnClose" Content="✕" Width="32" DockPanel.Dock="Right" Margin="2,0"
+                      Click="btnClose_Click" ToolTip="닫기"/>
+                <Button x:Name="btnTopMost" Content="📌" Width="32" DockPanel.Dock="Right" Margin="2,0"
+                      Click="btnTopMost_Click" ToolTip="항상 위에 고정"/>
+                <Button x:Name="btnRemote" Content="🎛️" Width="32" DockPanel.Dock="Right" Margin="2,0"
+                      Click="btnRemote_Click" ToolTip="리모컨 창 열기/닫기"/>
+                <Button x:Name="btnGo" Content="이동" Width="48" DockPanel.Dock="Right" Margin="2,0"
+                      Click="btnGo_Click" ToolTip="입력한 URL로 이동"/>
+                <!-- URL 마스킹/포커스/Enter 동작은 UrlInputBox 클래스가 코드로 연결함 -->
+                <TextBox x:Name="txtUrl" Margin="2,0" Padding="4,2" VerticalContentAlignment="Center"
+                       Foreground="#FFFFFF" CaretBrush="#FFFFFF" Background="#2D2D2D" BorderThickness="0"
+                       ToolTip="URL은 가려져 표시됩니다 — 입력창을 클릭하면 실제 URL 노출" />
+            </DockPanel>
+        </StackPanel>
+
+        <!-- 초기 안내 오버레이: WebView2보다 아래(z-order)에 둔다.
+             WebView2는 airspace 특성상 항상 WPF 렌더 위에 그려지지만,
+             투명 배경이므로 아래 WPF 내용(이 카드)이 비쳐 보인다.
+             실제 http(s) 페이지로 이동하면 코드비하인드가 숨긴다. -->
+        <Border x:Name="initialOverlay" Grid.Row="1"
+                HorizontalAlignment="Center" VerticalAlignment="Center"
+                Background="#80101010" CornerRadius="12" Padding="28,20"
+                IsHitTestVisible="False">
+            <StackPanel>
+                <TextBlock Text="🪟" FontFamily="Segoe UI Emoji" FontSize="36" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                <TextBlock x:Name="overlayTitle" Text="ChatDuku" Foreground="White"
+                         FontSize="22" FontWeight="Bold" HorizontalAlignment="Center"/>
+                <TextBlock Text="투명 배경 WebView2 — 이 뒤로 바탕화면이 보입니다"
+                         Foreground="#EEEEEE" FontSize="13" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                <TextBlock Text="상단 히트존에 마우스를 올려 툴바를 열고, URL을 입력해 보세요"
+                         Foreground="#BBBBBB" FontSize="12" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- WebView2: 배경이 transparent면 창 너머(또는 아래 WPF 레이어)가 보임 -->
+        <wv2:WebView2 x:Name="webView" Grid.Row="1" Margin="8" />
+
+        <!-- 외곽 사각형: 초기 상태에서 브라우저 영역 경계를 표시.
+             WebView2(airspace)와 겹치지 않도록 Margin을 webView보다 바깥에 둔다.
+             색/두께는 AppSettings에서, 첫 URL 이동 시 숨김 처리한다. -->
+        <Border x:Name="frame" Grid.Row="1" Margin="4"
+                BorderBrush="#88FFFFFF" BorderThickness="2"
+                Background="Transparent" IsHitTestVisible="False" />
+    </Grid>
+</Window>

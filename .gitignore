@@ -1,0 +1,22 @@
+# Build outputs
+bin/
+obj/
+
+# Rider / VS
+.vs/
+*.user
+*.suo
+*.userprefs
+
+# WebView2 사용자 데이터 & 로컬 PIN
+WebView2UserData/
+bin/**/WebView2UserData/
+pins.json
+
+# NuGet
+*.nupkg
+packages/
+
+# OS
+Thumbs.db
+Desktop.ini
