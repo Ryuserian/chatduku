@@ -5,7 +5,8 @@
 [![.NET](https://img.shields.io/badge/.NET-10.0-blue)](https://dotnet.microsoft.com/)
 [![WPF](https://img.shields.io/badge/WPF-Windows-512BD4)](https://learn.microsoft.com/dotnet/desktop/wpf/)
 [![WebView2](https://img.shields.io/badge/WebView2-Edge%20Chromium-0078D7)](https://developer.microsoft.com/microsoft-edge/webview2/)
-[![Release](https://img.shields.io/badge/Release-v1.0.1-brightgreen)](https://github.com/)
+[![Release](https://img.shields.io/badge/Release-v1.0.1-brightgreen)](https://github.com/Ryuserian/chatduku/releases/tag/v1.0.1)
+[![Download](https://img.shields.io/github/v/release/Ryuserian/chatduku?color=blue&label=download&logo=github)](https://github.com/Ryuserian/chatduku/releases/download/v1.0.1/chatduku-v1.0.1-win-x64-selfcontained.zip)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
